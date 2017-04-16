@@ -113,12 +113,34 @@ function drawSobel(){
 	ctx.putImageData(imgData, 0, 0);
 }
 
+function drawSobelRegion(ball){
+	var imgData = ctx.createImageData(ball.radius*6, ball.radius*6);
+	var tx, ty;
+	var pos, i;
+	for (var y = 0; y < ball.radius*6; y++){
+		for (var x = 0; x < ball.radius*6; x++){
+			tx = x + ball.x - ball.radius*2; 
+			ty = y + ball.y - ball.radius*2;
+			
+			pos = xyToPos(tx, ty);
+			i = (y*(ball.radius*6)+x)*4;
+			imgData.data[i] = Math.abs(1.13983*sobelX[pos]);
+			imgData.data[i+2] = Math.abs(2.03211*sobelY[pos]);
+			imgData.data[i+1] = Math.abs(-0.39465*sobelY[pos] + -0.58060*sobelX[pos]);
+			imgData.data[i+3] = 255;
+		}
+	}
+	ctx.drawImage(document.getElementById("img"), ball.x-ball.radius*2, ball.y-ball.radius*2, ball.radius*6, ball.radius*6, ball.x-ball.radius*2, ball.y-ball.radius*2, ball.radius*6, ball.radius*6);
+	//ctx.putImageData(imgData, ball.x-ball.radius*2, ball.y-ball.radius*2);
+}
+
 var interval;
 //Create the load image button.
 var button4 = document.createElement("button");
 button4.innerHTML = "Animate";
 button4.addEventListener('click',function(){
-	interval = setInterval(draw, 1000);
+	//interval = setInterval(draw, 1000);
+	window.requestAnimationFrame(draw);
 }, false);
 document.body.appendChild(button4);
 
@@ -129,11 +151,232 @@ button5.addEventListener('click',function(){
 }, false);
 document.body.appendChild(button5);
 
+
+var ball = new Ball();
+var canvasRect = canvas.getBoundingClientRect();
+var dropIt = true;
+canvas.addEventListener("mousemove",function(e){
+	if (!dropIt){
+		ball.velX = 0;
+		ball.velY = 0;
+		ball.x = e.clientX - canvasRect.left;
+		ball.y = e.clientY - canvasRect.top;
+		draw();
+	}
+});
+canvas.addEventListener("click",function(e){
+	dropIt = !dropIt;
+	draw();
+});
+
 function draw(){
-	drawSobel();
+	//drawSobel();
+	drawSobelRegion(ball);
+	ball.draw();
 	console.log("Hello Draw");
-	
+	//setTimeout(function(){window.requestAnimationFrame(draw);},30);
+	if (dropIt){
+		setTimeout(function(){window.requestAnimationFrame(draw);},15);//30);
+		//window.requestAnimationFrame(draw);
+	}
 }
+
+
+
+function Ball(){
+	this.x = 50;
+	this.y = 50;
+	this.radius = 10;
+	
+	this.velX = 0;
+	this.velY = 0;
+	this.terminalVel = 7;//10;//7;//10;
+	
+	this.accelY = 1;
+	
+	this.collisionList = [];
+	this.collisionThreshold = 50;
+	
+	var canv = createCanvas(this.radius*2, this.radius*2, "", true);
+	var ctx2 = canv.getContext("2d");
+	ctx2.strokeStyle = "yellow";
+	ctx2.fillStyle = "orange";
+	ctx2.beginPath();
+	ctx2.arc(this.radius, this.radius, this.radius, 0, 2*Math.PI);
+	ctx2.stroke();
+	ctx2.fill();
+	var imageData = ctx2.getImageData(0, 0, canv.width, canv.height);
+	
+	for (var i = 0; i < imageData.data.length; i+=4){
+		//console.log(imageData.data[i+0], imageData.data[i+1], imageData.data[i+2], imageData.data[i+3]);
+		if (imageData.data[i+3] > 254){
+			var pos = i/4;
+			var xv = pos%canv.width;
+			var yv = ((pos - xv)/canv.width)
+			
+			if ((xv % 2 == 0 && yv % 2 != 0) || (xv % 2 != 0 && yv % 2 == 0)){//Get every other pixel
+				imageData.data[i+2] =imageData.data[i+1] = imageData.data[i] = 255 - imageData.data[i+3];
+				imageData.data[i+3] = 255;
+				this.collisionList.push({x:xv, y:yv});//Half list
+			}
+			
+			//this.collisionList.push({x:xv, y:yv});//Full list
+			
+		}else{
+			imageData.data[i+3] = 0;
+		}
+	}
+	setTimeout(function(){ctx2.putImageData(imageData, 0, 0);}, 1000);
+	
+	
+	
+	this.draw = function(){
+		
+		ctx.strokeStyle = "yellow";
+		ctx.fillStyle = "orange";
+		ctx.beginPath();
+		ctx.arc(this.x + this.radius, this.y + this.radius, this.radius, 0, 2*Math.PI);
+		ctx.stroke();
+		ctx.fill();
+		ctx.fillRect(this.x, this.y, 1, 1);
+		
+		
+		this.update();
+		
+		//window.requestAnimationFrame(draw);
+	}
+	this.ignoreNextCol = false;
+	this.update = function(){
+		
+		
+		var hold = false;
+		//collision detection
+		var pos;
+		var collisionCount = 0;
+		var edgeXSum = 0;
+		var edgeYSum = 0;
+		var dirCounts = [0,0,0,0];
+		for (var i = 0; i < this.collisionList.length; i++){
+			pos = xyToPos(this.x + this.collisionList[i].x, this.y + this.collisionList[i].y);
+
+			/*
+			if (sobelX[pos] > this.collisionThreshold || sobelX[pos] < -this.collisionThreshold){
+				//console.log("x collision");
+				hold = true;
+			}
+			if (sobelY[pos] > this.collisionThreshold || sobelY[pos] < -this.collisionThreshold){
+				//console.log("y collision");
+				hold = true;
+			}*/
+			if (sobelX[pos] > this.collisionThreshold){
+				hold = true;
+				dirCounts[0]++;
+			}
+			if (sobelX[pos] < -this.collisionThreshold){
+				hold = true;
+				dirCounts[1]++;
+			}
+			if (sobelY[pos] > this.collisionThreshold){
+				hold = true;
+				dirCounts[2]++;
+			}
+			if (sobelY[pos] < -this.collisionThreshold){
+				hold = true;
+				dirCounts[3]++;
+			}
+			
+			
+			if (hold){
+				hold = false;
+				collisionCount++;
+				edgeXSum += sobelX[pos];
+				edgeYSum += sobelY[pos];
+				//console.log(this.x + this.collisionList[i].x, this.y + this.collisionList[i].y);
+				var tmpImgData = ctx.createImageData(1,1);
+				tmpImgData.data[0] = tmpImgData.data[2] = 0
+				tmpImgData.data[1] = tmpImgData.data[3] = 255;
+				ctx.putImageData(tmpImgData, this.x + this.collisionList[i].x, this.y + this.collisionList[i].y);
+				//console.log(sobelX[pos],sobelY[pos]);
+				//this.velY = -10;
+				//this.velX = 1;
+			}
+		}
+		if (collisionCount > 0 && !this.ignoreNextCol){
+			console.log("CollisionCount",collisionCount);
+			console.log(dirCounts);
+			var xConfused = Math.abs(dirCounts[0] - dirCounts[1]) < Math.abs(dirCounts[0] + dirCounts[1])/4;//Difference than less than half the average
+			var yConfused = Math.abs(dirCounts[2] - dirCounts[3]) < Math.abs(dirCounts[2] + dirCounts[3])/4;//Difference than less than half the average
+			console.log("x confused",xConfused);
+			console.log("y confused",yConfused);
+			console.log("EdgeXSum",edgeXSum, "EdgeYSum",edgeYSum,"EdgeX",edgeXSum/collisionCount, "EdgeY",edgeYSum/collisionCount);
+			var edgeY = edgeYSum/collisionCount;
+			var edgeX = edgeXSum/collisionCount;
+			console.log("BallVelocity",this.velY, this.velX);
+			console.log("BallSpeed", Math.sqrt(this.velY*this.velY + this.velX*this.velX));
+			console.log("BallAngle", Math.atan2(this.velY, this.velX)/Math.PI/2*360);
+			console.log("Normal?",Math.atan2(edgeY,edgeX)/Math.PI/2*360);
+			var ballAngle = Math.atan2(this.velY, this.velX);
+			var ballSpeed = Math.sqrt(this.velY*this.velY + this.velX*this.velX);
+			var normal = Math.atan2(edgeY,edgeX);
+			console.log("BallReflectAngle", (2*normal - ballAngle)/Math.PI/2*360);
+			var ballReflectAngle = 2*normal - ballAngle;
+			console.log("BallNewVelY", Math.sin(ballReflectAngle)*ballSpeed);
+			console.log("BallNewVelX", Math.cos(ballReflectAngle)*ballSpeed);
+			
+			//this.velY = -Math.floor(Math.sin(ballReflectAngle)*ballSpeed);// + Math.floor(edgeYSum/collisionCount/40);;
+			//this.velX = -Math.floor(Math.cos(ballReflectAngle)*ballSpeed);// + Math.floor(edgeXSum/collisionCount/40);;
+			
+			
+			if(xConfused){
+				this.velX *= -1;//Math.floor(edgeXSum/collisionCount/15);//0;
+				//this.velX = -Math.floor(Math.cos(normal)*this.terminalVel);
+				this.ignoreNextCol = true;
+			}else{
+				this.velX = -Math.floor(Math.cos(ballReflectAngle)*ballSpeed);
+			}
+			if(yConfused){
+				this.velY *= -1;//Math.floor(edgeYSum/collisionCount/15);//0;
+				//this.velY = -Math.floor(Math.sin(normal)*this.terminalVel);
+				this.ignoreNextCol = true;
+			}else{
+				this.velY = -Math.floor(Math.sin(ballReflectAngle)*ballSpeed);
+			}
+			//this.velY = Math.floor(edgeYSum/collisionCount/15);
+			//this.velX = Math.floor(edgeXSum/collisionCount/15);
+			console.log(Math.atan2(edgeXSum,edgeYSum)/Math.PI/2*360);
+		}else{
+			this.ignoreNextCol = false;
+		}
+		
+		
+		
+		this.x += this.velX;
+		this.y += this.velY;
+		this.velY += this.accelY;
+
+		if (this.velY > this.terminalVel){this.velY = this.terminalVel;}
+		if (this.velY < -this.terminalVel){this.velY = -this.terminalVel;}
+		if (this.velX > this.terminalVel){this.velX = this.terminalVel;}
+		if (this.velX < -this.terminalVel){this.velX = -this.terminalVel;}
+		
+		
+		if (this.y + this.radius*2 > canvas.height){
+			this.velY *= -1;
+			this.y = canvas.height - this.radius*2;
+		}
+		if (this.x < 0 || this.x + this.radius*2 > canvas.width){
+			this.velX *= -1;
+			if (this.x < 0){
+				this.x = 0;
+			}else{
+				this.x = canvas.width - this.radius*2;
+			}
+		}
+	}
+}
+
+
+
 
 function createCanvas(w, h, border, appendToDoc){
 	var canvas = document.createElement("canvas");
