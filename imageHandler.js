@@ -63,11 +63,6 @@ button3.addEventListener('click',function(){
 			sobelX[xyToPos(x,y)] += 1*grayscale[xyToPos(x+1,y-1)];
 			sobelX[xyToPos(x,y)] += 2*grayscale[xyToPos(x+1,y)];
 			sobelX[xyToPos(x,y)] += 1*grayscale[xyToPos(x+1,y+1)];
-			//sobelX[xyToPos(x,y)] = Math.abs(sobelX[xyToPos(x,y)]);
-			//sobelX[xyToPos(x,y)] += 255/2;
-			//if (sobelX[xyToPos(x,y)] > 255 || sobelX[xyToPos(x,y)] < 0){
-			//		console.log(sobelX[xyToPos(x,y)])
-			//}
 			
 			sobelY[xyToPos(x,y)] = 0;
 			sobelY[xyToPos(x,y)] += -1*grayscale[xyToPos(x-1,y-1)];
@@ -76,12 +71,6 @@ button3.addEventListener('click',function(){
 			sobelY[xyToPos(x,y)] += 1*grayscale[xyToPos(x-1,y+1)];
 			sobelY[xyToPos(x,y)] += 2*grayscale[xyToPos(x,y+1)];
 			sobelY[xyToPos(x,y)] += 1*grayscale[xyToPos(x+1,y+1)];
-			//sobelY[xyToPos(x,y)] = Math.abs(sobelY[xyToPos(x,y)]);
-			//sobelY[xyToPos(x,y)] += 255/2;
-			//if (sobelY[xyToPos(x,y)] > 255 || sobelY[xyToPos(x,y)] < 0){
-			//		console.log(sobelY[xyToPos(x,y)])
-			//}
-			
 		}
 	}
 	drawSobel();
@@ -95,15 +84,10 @@ function drawSobel(){
 	var imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
 	for (var i = 0; i < imgData.data.length; i += 4){
 		var pos = i/4;
-		//imgData.data[i] = sobelX[pos];
-		//imgData.data[i+1] = sobelY[pos];
-		//imgData.data[i+2] = 0;
+		
+		//Inspired by YUV color model to represent angle.
 		//X = V
 		//Y = U
-		//imgData.data[i] = /*grayscale[pos] +*/ 1.13983*sobelX[pos];
-		//imgData.data[i+2] = /*grayscale[pos] +*/ 2.03211*sobelY[pos];
-		//imgData.data[i+1] = /*grayscale[pos] +*/ -0.39465*sobelY[pos] + -0.58060*sobelX[pos];
-		
 		imgData.data[i] = Math.abs(1.13983*sobelX[pos]);
 		imgData.data[i+2] = Math.abs(2.03211*sobelY[pos]);
 		imgData.data[i+1] = Math.abs(-0.39465*sobelY[pos] + -0.58060*sobelX[pos]);
@@ -115,29 +99,13 @@ function drawSobel(){
 	}
 	ctx.putImageData(imgData, 0, 0);
 }
-
-function drawSobelRegion(ball){
-	var imgData = ctx.createImageData(ball.radius*6, ball.radius*6);
-	var tx, ty;
-	var pos, i;
-	for (var y = 0; y < ball.radius*6; y++){
-		for (var x = 0; x < ball.radius*6; x++){
-			tx = x + ball.x - ball.radius*2; 
-			ty = y + ball.y - ball.radius*2;
-			
-			pos = xyToPos(tx, ty);
-			i = (y*(ball.radius*6)+x)*4;
-			imgData.data[i] = Math.abs(1.13983*sobelX[pos]);
-			imgData.data[i+2] = Math.abs(2.03211*sobelY[pos]);
-			imgData.data[i+1] = Math.abs(-0.39465*sobelY[pos] + -0.58060*sobelX[pos]);
-			imgData.data[i+3] = 255;
-		}
-	}
+//Draw the region around the ball, effectively erasing the last frame with the ball.
+function drawRegion(ball){
 	ctx.drawImage(document.getElementById("img"), ball.x-ball.radius*2, ball.y-ball.radius*2, ball.radius*6, ball.radius*6, ball.x-ball.radius*2, ball.y-ball.radius*2, ball.radius*6, ball.radius*6);
-	//ctx.putImageData(imgData, ball.x-ball.radius*2, ball.y-ball.radius*2);
 }
 
 var interval;
+
 //Create the load image button.
 var button4 = document.createElement("button");
 button4.innerHTML = "Animate";
@@ -179,7 +147,7 @@ canvas.addEventListener("click",function(e){
 
 function draw(){
 	//drawSobel();
-	drawSobelRegion(ball);
+	drawRegion(ball);
 	ball.draw();
 	ball.update();
 	//console.log("Hello Draw");
@@ -212,7 +180,7 @@ function Ball(){
 	this.collisionThreshold = 50;
 	
 	//Create collision mask
-	var canv = createCanvas(this.radius*2, this.radius*2, "", true);
+	var canv = createCanvas(this.radius*2, this.radius*2, "", false);
 	var ctx2 = canv.getContext("2d");
 	ctx2.strokeStyle = "yellow";
 	ctx2.fillStyle = "orange";
@@ -223,7 +191,6 @@ function Ball(){
 	var imageData = ctx2.getImageData(0, 0, canv.width, canv.height);
 	
 	for (var i = 0; i < imageData.data.length; i+=4){
-		//console.log(imageData.data[i+0], imageData.data[i+1], imageData.data[i+2], imageData.data[i+3]);
 		if (imageData.data[i+3] > 254){
 			var pos = i/4;
 			var xv = pos%canv.width;
@@ -234,13 +201,13 @@ function Ball(){
 				imageData.data[i+3] = 255;
 				this.collisionList.push({x:xv, y:yv});//Half list
 			}
-			
 			//this.collisionList.push({x:xv, y:yv});//Full list
 			
 		}else{
 			imageData.data[i+3] = 0;
 		}
 	}
+	//One second later draw the collision list
 	setTimeout(function(){ctx2.putImageData(imageData, 0, 0);}, 1000);
 	
 	//Draw the object on the canvas.
@@ -252,9 +219,6 @@ function Ball(){
 		ctx.arc(this.x + this.radius, this.y + this.radius, this.radius, 0, 2*Math.PI);
 		ctx.stroke();
 		ctx.fill();
-		ctx.fillRect(this.x, this.y, 1, 1);
-				
-		//window.requestAnimationFrame(draw);
 	}
 	
 	this.collisionCount = 0;
@@ -265,43 +229,29 @@ function Ball(){
 		
 		//collision detection				
 		if (this.testCollision(true) > 0){
-			//console.log("CollisionCount",this.collisionCount);
-			//console.log(dirCounts);
-			//var xConfused = Math.abs(dirCounts[0] - dirCounts[1]) < Math.abs(dirCounts[0] + dirCounts[1])/4;//Difference than less than half the average
-			//var yConfused = Math.abs(dirCounts[2] - dirCounts[3]) < Math.abs(dirCounts[2] + dirCounts[3])/4;//Difference than less than half the average
-			//console.log("x confused",xConfused);
-			//console.log("y confused",yConfused);
-						
+		
 			this.findFirstCollision();
 						
-			//console.log("EdgeXSum",this.edgeXSum, "EdgeYSum",this.edgeYSum,"EdgeX",this.edgeXSum/this.collisionCount, "EdgeY",this.edgeYSum/this.collisionCount);
 			var edgeY = this.edgeYSum/this.collisionCount;
 			var edgeX = this.edgeXSum/this.collisionCount;
-			//console.log("BallVelocity",this.velY, this.velX);
-			//console.log("BallSpeed", Math.sqrt(this.velY*this.velY + this.velX*this.velX));
-			//console.log("BallAngle", Math.atan2(this.velY, this.velX)/Math.PI/2*360);
-			//console.log("Normal?",Math.atan2(edgeY,edgeX)/Math.PI/2*360);
+			
 			var ballAngle = Math.atan2(this.velY, this.velX);
 			var ballSpeed = Math.sqrt(this.velY*this.velY + this.velX*this.velX);
+			
 			var normal = Math.atan2(edgeY,edgeX);
-			//console.log("BallReflectAngle", (2*normal - ballAngle)/Math.PI/2*360);
 			var ballReflectAngle = 2*normal - ballAngle;
-			//console.log("BallNewVelY", Math.sin(ballReflectAngle)*ballSpeed);
-			//console.log("BallNewVelX", Math.cos(ballReflectAngle)*ballSpeed);
 			
 			this.velY = -Math.floor(Math.sin(ballReflectAngle)*ballSpeed*this.damp);
 			this.velX = -Math.floor(Math.cos(ballReflectAngle)*ballSpeed*this.damp);
 			
 		}
-		
-		
+				
 		//Prevent the ball from going faster than the terminal velocity
 		if (this.velY > this.terminalVel){this.velY = this.terminalVel;}
 		if (this.velY < -this.terminalVel){this.velY = -this.terminalVel;}
 		if (this.velX > this.terminalVel){this.velX = this.terminalVel;}
 		if (this.velX < -this.terminalVel){this.velX = -this.terminalVel;}
-		
-		
+				
 		//Update Position and velocity
 		this.x += this.velX;
 		this.y += this.velY;
@@ -326,8 +276,6 @@ function Ball(){
 				this.x = canvas.width - this.radius*2;
 			}
 		}
-		
-		
 	}
 	//Test to see if there is a collision.
 	//Passing true to this function will draw the collision pixels in green.
@@ -368,8 +316,7 @@ function Ball(){
 		var dy = 0;
 		
 		var velLen = Math.sqrt(this.velY*this.velY + this.velX*this.velX);
-		
-		
+				
 		if (velLen != 0){
 			if (velLen == Math.abs(this.velX)){//No Y component
 				dx = this.velX/Math.abs(this.velX);
@@ -407,9 +354,6 @@ function Ball(){
 		}
 	}
 }
-
-
-
 //Create a canvas to draw on.
 function createCanvas(w, h, border, appendToDoc){
 	var canvas = document.createElement("canvas");
