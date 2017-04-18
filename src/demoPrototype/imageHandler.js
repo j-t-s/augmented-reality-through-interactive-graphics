@@ -126,14 +126,14 @@ document.body.appendChild(button5);
 
 
 var ball = new Ball();
-var canvasRect = canvas.getBoundingClientRect();
 var dropIt = true;
 canvas.addEventListener("mousemove",function(e){
+	var canvasRect = canvas.getBoundingClientRect();
 	if (!dropIt){
 		ball.velX = 0;
 		ball.velY = 0;
-		ball.x = e.clientX - canvasRect.left;
-		ball.y = e.clientY - canvasRect.top;
+		ball.x = e.clientX - canvasRect.left - ball.radius;
+		ball.y = e.clientY - canvasRect.top - ball.radius;
 		draw();
 	}else{
 		//ball.velX = -(ball.x - (e.clientX - canvasRect.left));
