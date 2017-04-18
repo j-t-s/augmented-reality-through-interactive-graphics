@@ -143,6 +143,8 @@ var button4 = document.createElement("button");
 button4.innerHTML = "Animate";
 button4.addEventListener('click',function(){
 	//interval = setInterval(draw, 100);
+	//Draw the Image as background
+	ctx.drawImage(document.getElementById("img"), 0, 0, canvas.width, canvas.height);
 	window.requestAnimationFrame(draw);
 }, false);
 document.body.appendChild(button4);
@@ -165,6 +167,9 @@ canvas.addEventListener("mousemove",function(e){
 		ball.x = e.clientX - canvasRect.left;
 		ball.y = e.clientY - canvasRect.top;
 		draw();
+	}else{
+		//ball.velX = -(ball.x - (e.clientX - canvasRect.left));
+		//ball.velY = -(ball.y - (e.clientY - canvasRect.top));
 	}
 });
 canvas.addEventListener("click",function(e){
@@ -177,7 +182,7 @@ function draw(){
 	drawSobelRegion(ball);
 	ball.draw();
 	ball.update();
-	console.log("Hello Draw");
+	//console.log("Hello Draw");
 	//setTimeout(function(){window.requestAnimationFrame(draw);},30);
 	if (dropIt){
 		setTimeout(function(){window.requestAnimationFrame(draw);},15);//30);
@@ -196,13 +201,17 @@ function Ball(){
 	
 	this.velX = 0;
 	this.velY = 0;
-	this.terminalVel = 15;//10;//7;//10;
+	this.terminalVel = 10;//10;//7;//10;
 	
 	this.accelY = 1;
+	this.accelX = 0;//1;
+	
+	this.damp = 0.75;
 	
 	this.collisionList = [];
 	this.collisionThreshold = 50;
 	
+	//Create collision mask
 	var canv = createCanvas(this.radius*2, this.radius*2, "", true);
 	var ctx2 = canv.getContext("2d");
 	ctx2.strokeStyle = "yellow";
@@ -234,8 +243,7 @@ function Ball(){
 	}
 	setTimeout(function(){ctx2.putImageData(imageData, 0, 0);}, 1000);
 	
-	
-	
+	//Draw the object on the canvas.
 	this.draw = function(){
 		
 		ctx.strokeStyle = "yellow";
@@ -245,330 +253,71 @@ function Ball(){
 		ctx.stroke();
 		ctx.fill();
 		ctx.fillRect(this.x, this.y, 1, 1);
-		
-		
-		//this.update();
-		
+				
 		//window.requestAnimationFrame(draw);
 	}
-	this.ignoreNextCol = false;
+	
+	this.collisionCount = 0;
+	this.edgeXSum = 0;
+	this.edgeYSum = 0;
+		
 	this.update = function(){
 		
-		
-		var hold = false;
-		//collision detection
-		var pos;
-		var collisionCount = 0;
-		var edgeXSum = 0;
-		var edgeYSum = 0;
-		var dirCounts = [0,0,0,0];
-		for (var i = 0; i < this.collisionList.length; i++){
-			pos = xyToPos(this.x + this.collisionList[i].x, this.y + this.collisionList[i].y);
-
-			/*
-			if (sobelX[pos] > this.collisionThreshold || sobelX[pos] < -this.collisionThreshold){
-				//console.log("x collision");
-				hold = true;
-			}
-			if (sobelY[pos] > this.collisionThreshold || sobelY[pos] < -this.collisionThreshold){
-				//console.log("y collision");
-				hold = true;
-			}*/
-			if (sobelX[pos] > this.collisionThreshold){
-				hold = true;
-				dirCounts[0]++;
-			}
-			if (sobelX[pos] < -this.collisionThreshold){
-				hold = true;
-				dirCounts[1]++;
-			}
-			if (sobelY[pos] > this.collisionThreshold){
-				hold = true;
-				dirCounts[2]++;
-			}
-			if (sobelY[pos] < -this.collisionThreshold){
-				hold = true;
-				dirCounts[3]++;
-			}
-			
-			
-			if (hold){
-				hold = false;
-				collisionCount++;
-				edgeXSum += sobelX[pos];
-				edgeYSum += sobelY[pos];
-				//console.log(this.x + this.collisionList[i].x, this.y + this.collisionList[i].y);
-				var tmpImgData = ctx.createImageData(1,1);
-				tmpImgData.data[0] = tmpImgData.data[2] = 0
-				tmpImgData.data[1] = tmpImgData.data[3] = 255;
-				ctx.putImageData(tmpImgData, this.x + this.collisionList[i].x, this.y + this.collisionList[i].y);
-				//console.log(sobelX[pos],sobelY[pos]);
-				//this.velY = -10;
-				//this.velX = 1;
-			}
-		}
-		if (collisionCount > 0 && !this.ignoreNextCol){
-			console.log("CollisionCount",collisionCount);
-			console.log(dirCounts);
-			var xConfused = Math.abs(dirCounts[0] - dirCounts[1]) < Math.abs(dirCounts[0] + dirCounts[1])/4;//Difference than less than half the average
-			var yConfused = Math.abs(dirCounts[2] - dirCounts[3]) < Math.abs(dirCounts[2] + dirCounts[3])/4;//Difference than less than half the average
-			console.log("x confused",xConfused);
-			console.log("y confused",yConfused);
-			
-			
-			var futureX = this.x;
-			var futureY = this.y;
-			this.x -= this.velX;
-			this.y -= this.velY;
-			
-			var dx = 0;
-			var dy = 0;
-			
-			var velLen = Math.sqrt(this.velY*this.velY + this.velX*this.velX);
-			
-			function testCollision(ball){
-				collisionCount = 0;
-				edgeXSum = 0;
-				edgeYSum = 0;
-				for (var i = 0; i < ball.collisionList.length; i++){
-					pos = xyToPos(Math.floor(ball.x) + ball.collisionList[i].x, Math.floor(ball.y) + ball.collisionList[i].y);
-
-					if (sobelX[pos] > ball.collisionThreshold || 
-						sobelX[pos] < -ball.collisionThreshold||
-						sobelY[pos] > ball.collisionThreshold ||
-						sobelY[pos] < -ball.collisionThreshold){
-					
-						collisionCount++;
-						edgeXSum += sobelX[pos];
-						edgeYSum += sobelY[pos];
-					}
-				}
-				return collisionCount;//(collisionCount != 0?collisionCount:1);
-			}
-			if (velLen != 0){
-				if (velLen == Math.abs(this.velX)){//No Y component
-					dx = this.velX/Math.abs(this.velX);
-					while (testCollision(this) == 0 && this.x != futureX){
-						this.x += dx;
-						this.draw();
-					}
-				}else if (velLen == Math.abs(this.velY)){//No X component
-					dy = this.velY/Math.abs(this.velY);
-					while (testCollision(this) == 0 && this.y != futureY){
-						this.y += dy;
-						this.draw();
-					}
-				}else{//Diagonal
-					if (Math.abs(this.velY) > Math.abs(this.velX)){
-						dx = this.velX / Math.abs(this.velY);
-						dy = this.velY/Math.abs(this.velY);
-					}else{
-						dy = this.velY / Math.abs(this.velX);
-						dx = this.velX/Math.abs(this.velX);	
-					}
-					while (testCollision(this) == 0 && this.y != futureY){
-						this.x += dx;
-						this.y += dy;
-						this.draw();
-					}
-				}
-				//New position of x,y is the first collision location.
-				this.x = Math.floor(this.x);
-				this.y = Math.floor(this.y);
-				console.log("Got first collision?");
-				if (collisionCount == 0){
-					collisionCount = 1;
-				}
-			}
-			
-			
-			
-			
-			
-			
-			
-			console.log("EdgeXSum",edgeXSum, "EdgeYSum",edgeYSum,"EdgeX",edgeXSum/collisionCount, "EdgeY",edgeYSum/collisionCount);
-			var edgeY = edgeYSum/collisionCount;
-			var edgeX = edgeXSum/collisionCount;
-			console.log("BallVelocity",this.velY, this.velX);
-			console.log("BallSpeed", Math.sqrt(this.velY*this.velY + this.velX*this.velX));
-			console.log("BallAngle", Math.atan2(this.velY, this.velX)/Math.PI/2*360);
-			console.log("Normal?",Math.atan2(edgeY,edgeX)/Math.PI/2*360);
+		//collision detection				
+		if (this.testCollision(true) > 0){
+			//console.log("CollisionCount",this.collisionCount);
+			//console.log(dirCounts);
+			//var xConfused = Math.abs(dirCounts[0] - dirCounts[1]) < Math.abs(dirCounts[0] + dirCounts[1])/4;//Difference than less than half the average
+			//var yConfused = Math.abs(dirCounts[2] - dirCounts[3]) < Math.abs(dirCounts[2] + dirCounts[3])/4;//Difference than less than half the average
+			//console.log("x confused",xConfused);
+			//console.log("y confused",yConfused);
+						
+			this.findFirstCollision();
+						
+			//console.log("EdgeXSum",this.edgeXSum, "EdgeYSum",this.edgeYSum,"EdgeX",this.edgeXSum/this.collisionCount, "EdgeY",this.edgeYSum/this.collisionCount);
+			var edgeY = this.edgeYSum/this.collisionCount;
+			var edgeX = this.edgeXSum/this.collisionCount;
+			//console.log("BallVelocity",this.velY, this.velX);
+			//console.log("BallSpeed", Math.sqrt(this.velY*this.velY + this.velX*this.velX));
+			//console.log("BallAngle", Math.atan2(this.velY, this.velX)/Math.PI/2*360);
+			//console.log("Normal?",Math.atan2(edgeY,edgeX)/Math.PI/2*360);
 			var ballAngle = Math.atan2(this.velY, this.velX);
 			var ballSpeed = Math.sqrt(this.velY*this.velY + this.velX*this.velX);
 			var normal = Math.atan2(edgeY,edgeX);
-			console.log("BallReflectAngle", (2*normal - ballAngle)/Math.PI/2*360);
+			//console.log("BallReflectAngle", (2*normal - ballAngle)/Math.PI/2*360);
 			var ballReflectAngle = 2*normal - ballAngle;
-			console.log("BallNewVelY", Math.sin(ballReflectAngle)*ballSpeed);
-			console.log("BallNewVelX", Math.cos(ballReflectAngle)*ballSpeed);
+			//console.log("BallNewVelY", Math.sin(ballReflectAngle)*ballSpeed);
+			//console.log("BallNewVelX", Math.cos(ballReflectAngle)*ballSpeed);
 			
-			var damp = 0.80;
-			this.velY = -Math.floor(Math.sin(ballReflectAngle)*ballSpeed*damp);// + Math.floor(edgeYSum/collisionCount/40);;
-			this.velX = -Math.floor(Math.cos(ballReflectAngle)*ballSpeed*damp);// + Math.floor(edgeXSum/collisionCount/40);;
+			this.velY = -Math.floor(Math.sin(ballReflectAngle)*ballSpeed*this.damp);
+			this.velX = -Math.floor(Math.cos(ballReflectAngle)*ballSpeed*this.damp);
 			
 		}
-		/*
-			if(xConfused){
-				//this.velX *= -1;//Math.floor(edgeXSum/collisionCount/15);//0;
-				//this.velX = -Math.floor(Math.cos(normal)*this.terminalVel);
-				
-				//Back it up.
-				var futureX = this.x;
-				var futureY = this.y;
-				this.x -= this.velX;
-				this.y -= this.velY;
-				
-				var dx = 0;
-				var dy = 0;
-				
-				var velLen = Math.sqrt(this.velY*this.velY + this.velX*this.velX);
-				
-				function testCollision(ball){
-					collisionCount = 0;
-					edgeXSum = 0;
-					edgeYSum = 0;
-					for (var i = 0; i < ball.collisionList.length; i++){
-						pos = xyToPos(Math.floor(ball.x) + ball.collisionList[i].x, Math.floor(ball.y) + ball.collisionList[i].y);
-
-						if (sobelX[pos] > ball.collisionThreshold || 
-							sobelX[pos] < -ball.collisionThreshold||
-							sobelY[pos] > ball.collisionThreshold ||
-							sobelY[pos] < -ball.collisionThreshold){
-						
-							collisionCount++;
-							edgeXSum += sobelX[pos];
-							edgeYSum += sobelY[pos];
-						}
-					}
-					return collisionCount;
-				}
-				if (velLen != 0){
-					if (velLen == Math.abs(this.velX)){//No Y component
-						dx = this.velX/Math.abs(this.velX);
-						while (testCollision(this) == 0 && this.x != futureX){
-							this.x += dx;
-						}
-					}else if (velLen == Math.abs(this.velY)){//No X component
-						dy = this.velY/Math.abs(this.velY);
-						while (testCollision(this) == 0 && this.y != futureY){
-							this.y += dy;
-						}
-					}else{//Diagonal
-						if (Math.abs(this.velY) > Math.abs(this.velX)){
-							dx = this.velX / Math.abs(this.velY);
-							dy = this.velY/Math.abs(this.velY);
-						}else{
-							dy = this.velY / Math.abs(this.velX);
-							dx = this.velX/Math.abs(this.velX);	
-						}
-						while (testCollision(this) == 0 && this.y != futureY){
-							this.x += dx;
-							this.y += dy;
-						}
-					}
-					//New position of x,y is the first collision location.
-					this.x = Math.floor(this.x);
-					this.y = Math.floor(this.y);
-					console.log("X-Confused, Got first collision?");
-					return;
-				}
-				
-				//this.ignoreNextCol = true;
-			}else{
-				this.velX = -Math.floor(Math.cos(ballReflectAngle)*ballSpeed);
-			}
-			if(yConfused){
-				//this.velX *= -1;//Math.floor(edgeXSum/collisionCount/15);//0;
-				//this.velX = -Math.floor(Math.cos(normal)*this.terminalVel);
-				
-				//Back it up.
-				var futureX = this.x;
-				var futureY = this.y;
-				this.x -= this.velX;
-				this.y -= this.velY;
-				
-				var dx = 0;
-				var dy = 0;
-				
-				var velLen = Math.sqrt(this.velY*this.velY + this.velX*this.velX);
-				
-				function testCollision(ball){
-					collisionCount = 0;
-					edgeXSum = 0;
-					edgeYSum = 0;
-					for (var i = 0; i < ball.collisionList.length; i++){
-						pos = xyToPos(Math.floor(ball.x) + ball.collisionList[i].x, Math.floor(ball.y) + ball.collisionList[i].y);
-
-						if (sobelX[pos] > ball.collisionThreshold || 
-							sobelX[pos] < -ball.collisionThreshold||
-							sobelY[pos] > ball.collisionThreshold ||
-							sobelY[pos] < -ball.collisionThreshold){
-						
-							collisionCount++;
-							edgeXSum += sobelX[pos];
-							edgeYSum += sobelY[pos];
-						}
-					}
-					return collisionCount;
-				}
-				if (velLen != 0){
-					if (velLen == Math.abs(this.velX)){//No Y component
-						dx = this.velX/Math.abs(this.velX);
-						while (testCollision(this) == 0 && this.x != futureX){
-							this.x += dx;
-						}
-					}else if (velLen == Math.abs(this.velY)){//No X component
-						dy = this.velY/Math.abs(this.velY);
-						while (testCollision(this) == 0 && this.y != futureY){
-							this.y += dy;
-						}
-					}else{//Diagonal
-						if (Math.abs(this.velY) > Math.abs(this.velX)){
-							dx = this.velX / Math.abs(this.velY);
-							dy = this.velY/Math.abs(this.velY);
-						}else{
-							dy = this.velY / Math.abs(this.velX);
-							dx = this.velX/Math.abs(this.velX);	
-						}
-						while (testCollision(this) == 0 && this.y != futureY){
-							this.x += dx;
-							this.y += dy;
-						}
-					}
-					//New position of x,y is the first collision location.
-					this.x = Math.floor(this.x);
-					this.y = Math.floor(this.y);
-					console.log("Y-Confused, Got first collision?");
-					return;
-				}
-				//this.ignoreNextCol = true;
-			}else{
-				this.velY = -Math.floor(Math.sin(ballReflectAngle)*ballSpeed);
-			}
-			//this.velY = Math.floor(edgeYSum/collisionCount/15);
-			//this.velX = Math.floor(edgeXSum/collisionCount/15);
-			console.log(Math.atan2(edgeXSum,edgeYSum)/Math.PI/2*360);
-		}else{
-			this.ignoreNextCol = false;
-		}
-		*/
 		
-
+		
+		//Prevent the ball from going faster than the terminal velocity
 		if (this.velY > this.terminalVel){this.velY = this.terminalVel;}
 		if (this.velY < -this.terminalVel){this.velY = -this.terminalVel;}
 		if (this.velX > this.terminalVel){this.velX = this.terminalVel;}
 		if (this.velX < -this.terminalVel){this.velX = -this.terminalVel;}
 		
 		
-		
+		//Update Position and velocity
 		this.x += this.velX;
 		this.y += this.velY;
 		this.velY += this.accelY;
+		this.velX += this.accelX;
 		
-		if (this.y + this.radius*2 > canvas.height){
+		//Prevent the ball from going outside the top and bottom of the canvas.
+		if (this.y < 0 || this.y + this.radius*2 > canvas.height){
 			this.velY *= -1;
-			this.y = canvas.height - this.radius*2;
+			if (this.y < 0){
+				this.y = 0;
+			}else{
+				this.y = canvas.height - this.radius*2;
+			}
 		}
+		//Prevent the ball from going outside the left and right of the canvas.
 		if (this.x < 0 || this.x + this.radius*2 > canvas.width){
 			this.velX *= -1;
 			if (this.x < 0){
@@ -580,11 +329,88 @@ function Ball(){
 		
 		
 	}
+	//Test to see if there is a collision.
+	//Passing true to this function will draw the collision pixels in green.
+	this.testCollision = function(showCollision){
+		this.collisionCount = 0;
+		this.edgeXSum = 0;
+		this.edgeYSum = 0;
+		for (var i = 0; i < this.collisionList.length; i++){
+			var pos = xyToPos(Math.floor(this.x) + this.collisionList[i].x, Math.floor(this.y) + this.collisionList[i].y);
+
+			if (sobelX[pos] > this.collisionThreshold || 
+				sobelX[pos] < -this.collisionThreshold||
+				sobelY[pos] > this.collisionThreshold ||
+				sobelY[pos] < -this.collisionThreshold){
+			
+				this.collisionCount++;
+				this.edgeXSum += sobelX[pos];
+				this.edgeYSum += sobelY[pos];
+				
+				if (showCollision === true){//Draw the collisions as green pixels
+					var tmpImgData = ctx.createImageData(1,1);
+					tmpImgData.data[0] = tmpImgData.data[2] = 0
+					tmpImgData.data[1] = tmpImgData.data[3] = 255;
+					ctx.putImageData(tmpImgData, Math.floor(this.x) + this.collisionList[i].x, Math.floor(this.y) + this.collisionList[i].y);
+				}
+			}
+		}
+		return this.collisionCount;
+	}
+	//Reset the ball, and slowly move it forward testing for the first collision point.
+	this.findFirstCollision = function(){
+		var futureX = this.x;
+		var futureY = this.y;
+		this.x -= this.velX;
+		this.y -= this.velY;
+		
+		var dx = 0;
+		var dy = 0;
+		
+		var velLen = Math.sqrt(this.velY*this.velY + this.velX*this.velX);
+		
+		
+		if (velLen != 0){
+			if (velLen == Math.abs(this.velX)){//No Y component
+				dx = this.velX/Math.abs(this.velX);
+				while (this.testCollision() == 0 && this.x != futureX){
+					this.x += dx;
+					//this.draw();
+				}
+			}else if (velLen == Math.abs(this.velY)){//No X component
+				dy = this.velY/Math.abs(this.velY);
+				while (this.testCollision() == 0 && this.y != futureY){
+					this.y += dy;
+					//this.draw();
+				}
+			}else{//Diagonal
+				if (Math.abs(this.velY) > Math.abs(this.velX)){
+					dx = this.velX / Math.abs(this.velY);
+					dy = this.velY/Math.abs(this.velY);
+				}else{
+					dy = this.velY / Math.abs(this.velX);
+					dx = this.velX/Math.abs(this.velX);	
+				}
+				while (this.testCollision() == 0 && this.y != futureY){
+					this.x += dx;
+					this.y += dy;
+					//this.draw();
+				}
+			}
+			//New position of x,y is the first collision location.
+			this.x = Math.floor(this.x);
+			this.y = Math.floor(this.y);
+			//console.log("Got first collision?");
+			if (this.collisionCount == 0){
+				this.collisionCount = 1;
+			}
+		}
+	}
 }
 
 
 
-
+//Create a canvas to draw on.
 function createCanvas(w, h, border, appendToDoc){
 	var canvas = document.createElement("canvas");
 	canvas.style.border = border;
