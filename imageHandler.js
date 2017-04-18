@@ -107,6 +107,9 @@ function drawSobel(){
 		imgData.data[i] = Math.abs(1.13983*sobelX[pos]);
 		imgData.data[i+2] = Math.abs(2.03211*sobelY[pos]);
 		imgData.data[i+1] = Math.abs(-0.39465*sobelY[pos] + -0.58060*sobelX[pos]);
+		//imgData.data[i] = 1.13983*(sobelX[pos]+1020)/2040 * 255;
+		//imgData.data[i+2] = 2.03211*(sobelY[pos]+1020)/2040 * 255;
+		//imgData.data[i+1] = -0.39465*(sobelY[pos]+1020)/2040 + -0.58060*(sobelX[pos]+1020)/2040 * 255;
 		
 		imgData.data[i+3] = 255;
 	}
@@ -139,7 +142,7 @@ var interval;
 var button4 = document.createElement("button");
 button4.innerHTML = "Animate";
 button4.addEventListener('click',function(){
-	//interval = setInterval(draw, 1000);
+	//interval = setInterval(draw, 100);
 	window.requestAnimationFrame(draw);
 }, false);
 document.body.appendChild(button4);
@@ -173,11 +176,14 @@ function draw(){
 	//drawSobel();
 	drawSobelRegion(ball);
 	ball.draw();
+	ball.update();
 	console.log("Hello Draw");
 	//setTimeout(function(){window.requestAnimationFrame(draw);},30);
 	if (dropIt){
 		setTimeout(function(){window.requestAnimationFrame(draw);},15);//30);
 		//window.requestAnimationFrame(draw);
+	}else{
+		//clearInterval(interval);
 	}
 }
 
@@ -190,7 +196,7 @@ function Ball(){
 	
 	this.velX = 0;
 	this.velY = 0;
-	this.terminalVel = 7;//10;//7;//10;
+	this.terminalVel = 15;//10;//7;//10;
 	
 	this.accelY = 1;
 	
@@ -241,7 +247,7 @@ function Ball(){
 		ctx.fillRect(this.x, this.y, 1, 1);
 		
 		
-		this.update();
+		//this.update();
 		
 		//window.requestAnimationFrame(draw);
 	}
@@ -308,6 +314,79 @@ function Ball(){
 			var yConfused = Math.abs(dirCounts[2] - dirCounts[3]) < Math.abs(dirCounts[2] + dirCounts[3])/4;//Difference than less than half the average
 			console.log("x confused",xConfused);
 			console.log("y confused",yConfused);
+			
+			
+			var futureX = this.x;
+			var futureY = this.y;
+			this.x -= this.velX;
+			this.y -= this.velY;
+			
+			var dx = 0;
+			var dy = 0;
+			
+			var velLen = Math.sqrt(this.velY*this.velY + this.velX*this.velX);
+			
+			function testCollision(ball){
+				collisionCount = 0;
+				edgeXSum = 0;
+				edgeYSum = 0;
+				for (var i = 0; i < ball.collisionList.length; i++){
+					pos = xyToPos(Math.floor(ball.x) + ball.collisionList[i].x, Math.floor(ball.y) + ball.collisionList[i].y);
+
+					if (sobelX[pos] > ball.collisionThreshold || 
+						sobelX[pos] < -ball.collisionThreshold||
+						sobelY[pos] > ball.collisionThreshold ||
+						sobelY[pos] < -ball.collisionThreshold){
+					
+						collisionCount++;
+						edgeXSum += sobelX[pos];
+						edgeYSum += sobelY[pos];
+					}
+				}
+				return collisionCount;//(collisionCount != 0?collisionCount:1);
+			}
+			if (velLen != 0){
+				if (velLen == Math.abs(this.velX)){//No Y component
+					dx = this.velX/Math.abs(this.velX);
+					while (testCollision(this) == 0 && this.x != futureX){
+						this.x += dx;
+						this.draw();
+					}
+				}else if (velLen == Math.abs(this.velY)){//No X component
+					dy = this.velY/Math.abs(this.velY);
+					while (testCollision(this) == 0 && this.y != futureY){
+						this.y += dy;
+						this.draw();
+					}
+				}else{//Diagonal
+					if (Math.abs(this.velY) > Math.abs(this.velX)){
+						dx = this.velX / Math.abs(this.velY);
+						dy = this.velY/Math.abs(this.velY);
+					}else{
+						dy = this.velY / Math.abs(this.velX);
+						dx = this.velX/Math.abs(this.velX);	
+					}
+					while (testCollision(this) == 0 && this.y != futureY){
+						this.x += dx;
+						this.y += dy;
+						this.draw();
+					}
+				}
+				//New position of x,y is the first collision location.
+				this.x = Math.floor(this.x);
+				this.y = Math.floor(this.y);
+				console.log("Got first collision?");
+				if (collisionCount == 0){
+					collisionCount = 1;
+				}
+			}
+			
+			
+			
+			
+			
+			
+			
 			console.log("EdgeXSum",edgeXSum, "EdgeYSum",edgeYSum,"EdgeX",edgeXSum/collisionCount, "EdgeY",edgeYSum/collisionCount);
 			var edgeY = edgeYSum/collisionCount;
 			var edgeX = edgeXSum/collisionCount;
@@ -323,21 +402,146 @@ function Ball(){
 			console.log("BallNewVelY", Math.sin(ballReflectAngle)*ballSpeed);
 			console.log("BallNewVelX", Math.cos(ballReflectAngle)*ballSpeed);
 			
-			//this.velY = -Math.floor(Math.sin(ballReflectAngle)*ballSpeed);// + Math.floor(edgeYSum/collisionCount/40);;
-			//this.velX = -Math.floor(Math.cos(ballReflectAngle)*ballSpeed);// + Math.floor(edgeXSum/collisionCount/40);;
+			var damp = 0.80;
+			this.velY = -Math.floor(Math.sin(ballReflectAngle)*ballSpeed*damp);// + Math.floor(edgeYSum/collisionCount/40);;
+			this.velX = -Math.floor(Math.cos(ballReflectAngle)*ballSpeed*damp);// + Math.floor(edgeXSum/collisionCount/40);;
 			
-			
+		}
+		/*
 			if(xConfused){
-				this.velX *= -1;//Math.floor(edgeXSum/collisionCount/15);//0;
+				//this.velX *= -1;//Math.floor(edgeXSum/collisionCount/15);//0;
 				//this.velX = -Math.floor(Math.cos(normal)*this.terminalVel);
-				this.ignoreNextCol = true;
+				
+				//Back it up.
+				var futureX = this.x;
+				var futureY = this.y;
+				this.x -= this.velX;
+				this.y -= this.velY;
+				
+				var dx = 0;
+				var dy = 0;
+				
+				var velLen = Math.sqrt(this.velY*this.velY + this.velX*this.velX);
+				
+				function testCollision(ball){
+					collisionCount = 0;
+					edgeXSum = 0;
+					edgeYSum = 0;
+					for (var i = 0; i < ball.collisionList.length; i++){
+						pos = xyToPos(Math.floor(ball.x) + ball.collisionList[i].x, Math.floor(ball.y) + ball.collisionList[i].y);
+
+						if (sobelX[pos] > ball.collisionThreshold || 
+							sobelX[pos] < -ball.collisionThreshold||
+							sobelY[pos] > ball.collisionThreshold ||
+							sobelY[pos] < -ball.collisionThreshold){
+						
+							collisionCount++;
+							edgeXSum += sobelX[pos];
+							edgeYSum += sobelY[pos];
+						}
+					}
+					return collisionCount;
+				}
+				if (velLen != 0){
+					if (velLen == Math.abs(this.velX)){//No Y component
+						dx = this.velX/Math.abs(this.velX);
+						while (testCollision(this) == 0 && this.x != futureX){
+							this.x += dx;
+						}
+					}else if (velLen == Math.abs(this.velY)){//No X component
+						dy = this.velY/Math.abs(this.velY);
+						while (testCollision(this) == 0 && this.y != futureY){
+							this.y += dy;
+						}
+					}else{//Diagonal
+						if (Math.abs(this.velY) > Math.abs(this.velX)){
+							dx = this.velX / Math.abs(this.velY);
+							dy = this.velY/Math.abs(this.velY);
+						}else{
+							dy = this.velY / Math.abs(this.velX);
+							dx = this.velX/Math.abs(this.velX);	
+						}
+						while (testCollision(this) == 0 && this.y != futureY){
+							this.x += dx;
+							this.y += dy;
+						}
+					}
+					//New position of x,y is the first collision location.
+					this.x = Math.floor(this.x);
+					this.y = Math.floor(this.y);
+					console.log("X-Confused, Got first collision?");
+					return;
+				}
+				
+				//this.ignoreNextCol = true;
 			}else{
 				this.velX = -Math.floor(Math.cos(ballReflectAngle)*ballSpeed);
 			}
 			if(yConfused){
-				this.velY *= -1;//Math.floor(edgeYSum/collisionCount/15);//0;
-				//this.velY = -Math.floor(Math.sin(normal)*this.terminalVel);
-				this.ignoreNextCol = true;
+				//this.velX *= -1;//Math.floor(edgeXSum/collisionCount/15);//0;
+				//this.velX = -Math.floor(Math.cos(normal)*this.terminalVel);
+				
+				//Back it up.
+				var futureX = this.x;
+				var futureY = this.y;
+				this.x -= this.velX;
+				this.y -= this.velY;
+				
+				var dx = 0;
+				var dy = 0;
+				
+				var velLen = Math.sqrt(this.velY*this.velY + this.velX*this.velX);
+				
+				function testCollision(ball){
+					collisionCount = 0;
+					edgeXSum = 0;
+					edgeYSum = 0;
+					for (var i = 0; i < ball.collisionList.length; i++){
+						pos = xyToPos(Math.floor(ball.x) + ball.collisionList[i].x, Math.floor(ball.y) + ball.collisionList[i].y);
+
+						if (sobelX[pos] > ball.collisionThreshold || 
+							sobelX[pos] < -ball.collisionThreshold||
+							sobelY[pos] > ball.collisionThreshold ||
+							sobelY[pos] < -ball.collisionThreshold){
+						
+							collisionCount++;
+							edgeXSum += sobelX[pos];
+							edgeYSum += sobelY[pos];
+						}
+					}
+					return collisionCount;
+				}
+				if (velLen != 0){
+					if (velLen == Math.abs(this.velX)){//No Y component
+						dx = this.velX/Math.abs(this.velX);
+						while (testCollision(this) == 0 && this.x != futureX){
+							this.x += dx;
+						}
+					}else if (velLen == Math.abs(this.velY)){//No X component
+						dy = this.velY/Math.abs(this.velY);
+						while (testCollision(this) == 0 && this.y != futureY){
+							this.y += dy;
+						}
+					}else{//Diagonal
+						if (Math.abs(this.velY) > Math.abs(this.velX)){
+							dx = this.velX / Math.abs(this.velY);
+							dy = this.velY/Math.abs(this.velY);
+						}else{
+							dy = this.velY / Math.abs(this.velX);
+							dx = this.velX/Math.abs(this.velX);	
+						}
+						while (testCollision(this) == 0 && this.y != futureY){
+							this.x += dx;
+							this.y += dy;
+						}
+					}
+					//New position of x,y is the first collision location.
+					this.x = Math.floor(this.x);
+					this.y = Math.floor(this.y);
+					console.log("Y-Confused, Got first collision?");
+					return;
+				}
+				//this.ignoreNextCol = true;
 			}else{
 				this.velY = -Math.floor(Math.sin(ballReflectAngle)*ballSpeed);
 			}
@@ -347,18 +551,19 @@ function Ball(){
 		}else{
 			this.ignoreNextCol = false;
 		}
+		*/
 		
-		
-		
-		this.x += this.velX;
-		this.y += this.velY;
-		this.velY += this.accelY;
 
 		if (this.velY > this.terminalVel){this.velY = this.terminalVel;}
 		if (this.velY < -this.terminalVel){this.velY = -this.terminalVel;}
 		if (this.velX > this.terminalVel){this.velX = this.terminalVel;}
 		if (this.velX < -this.terminalVel){this.velX = -this.terminalVel;}
 		
+		
+		
+		this.x += this.velX;
+		this.y += this.velY;
+		this.velY += this.accelY;
 		
 		if (this.y + this.radius*2 > canvas.height){
 			this.velY *= -1;
@@ -372,6 +577,8 @@ function Ball(){
 				this.x = canvas.width - this.radius*2;
 			}
 		}
+		
+		
 	}
 }
 
