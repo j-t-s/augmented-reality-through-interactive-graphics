@@ -12,6 +12,50 @@ var ball = new Ball();
 //Create running animation variable
 var running = true;
 
+var streaming = false;
+var video = document.createElement("video");
+document.body.appendChild(video);
+
+navigator.getMedia = (	navigator.getUserMedia || 
+						navigator.webkitGetUserMedia ||
+						navigator.mozGetUserMedia ||
+						navigator.msGetUserMedia );
+navigator.getMedia({video: true, audio: false}, 
+	function(stream){
+		if (navigator.mozGetUserMedia){
+			video.mozSrcObject = stream;			
+		}else{
+			var vendorURL = window.URL || window.webkitURL;
+			video.src = vendorURL.createObjectURL(stream);
+		}
+		video.play();
+	},
+	function(err){
+		console.log("Error: "+err);
+	}
+);
+
+video.addEventListener("canplay",
+	function(e){
+		if (!streaming){
+			streaming = true;
+			loadVideo();
+		}
+	},
+	false
+);
+function loadVideo(){
+	canvas.width = canvasIn.width = video.videoWidth;
+	canvas.height = canvasIn.height = video.videoHeight;
+	//Draw the Image
+	ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+	ctxIn.drawImage(video, 0, 0, canvas.width, canvas.height);
+	
+}
+
+
+
+
 //When the image loads, start the module.
 document.getElementById("img").addEventListener("load", main, false);
 
@@ -58,6 +102,8 @@ function checkImgLoaded(){
 }
 
 function draw(){
+	ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+	ctxIn.drawImage(video, 0, 0, canvas.width, canvas.height);
 	ball.draw();
 	ball.update();
 	
