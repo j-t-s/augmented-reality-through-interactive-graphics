@@ -16,6 +16,10 @@ function Ball(x, y, velX, velY, accelX, accelY, damp, collisionThreshold) {
 	this.collisionList = [];
 	this.collisionThreshold = (typeof collisionThreshold !== 'undefined') ? collisionThreshold : 50;
 	
+	this.collisionCount = 0;
+	this.edgeXSum = 0;
+	this.edgeYSum = 0;
+	
 	//Create collision mask
 	var canv = createCanvas(this.radius*2, this.radius*2, "", false);
 	var ctx2 = canv.getContext("2d");
@@ -34,7 +38,7 @@ function Ball(x, y, velX, velY, accelX, accelY, damp, collisionThreshold) {
 			var yv = ((pos - xv)/canv.width)
 			
 			if ((xv % 2 == 0 && yv % 2 != 0) || (xv % 2 != 0 && yv % 2 == 0)){//Get every other pixel
-				imageData.data[i+2] =imageData.data[i+1] = imageData.data[i] = 255 - imageData.data[i+3];
+				imageData.data[i+2] = imageData.data[i+1] = imageData.data[i] = 255 - imageData.data[i+3];
 				imageData.data[i+3] = 255;
 				this.collisionList.push({x:xv, y:yv});//Half list
 			}
@@ -44,9 +48,21 @@ function Ball(x, y, velX, velY, accelX, accelY, damp, collisionThreshold) {
 			imageData.data[i+3] = 0;
 		}
 	}
+	//END of collision mask creation
 	
 	//Draw the object on the canvas.
 	this.draw = function(){
+		//Draw the oringal image over the area near the ball
+		//Effectively clearing the previous frame of the ball
+		ctx.putImageData(ctxIn.getImageData(
+				this.x-this.radius*2, 
+				this.y-this.radius*2, 
+				this.radius*6, 
+				this.radius*6), 
+			this.x-this.radius*2, 
+			this.y-this.radius*2);
+		
+		//Draw the ball
 		ctx.strokeStyle = "yellow";
 		ctx.fillStyle = "orange";
 		ctx.beginPath();
@@ -54,10 +70,6 @@ function Ball(x, y, velX, velY, accelX, accelY, damp, collisionThreshold) {
 		ctx.stroke();
 		ctx.fill();
 	}
-	
-	this.collisionCount = 0;
-	this.edgeXSum = 0;
-	this.edgeYSum = 0;
 		
 	this.update = function(){
 		
@@ -93,21 +105,21 @@ function Ball(x, y, velX, velY, accelX, accelY, damp, collisionThreshold) {
 		this.velX += this.accelX;
 		
 		//Prevent the ball from going outside the top and bottom of the canvas.
-		if (this.y < 0 || this.y + this.radius*2 > canvas.height){
+		if (this.y < 1 || this.y + this.radius*2 + 1 > canvas.height){
 			this.velY *= -1;
-			if (this.y < 0){
-				this.y = 0;
+			if (this.y < 1){
+				this.y = 1;
 			}else{
-				this.y = canvas.height - this.radius*2;
+				this.y = canvas.height - this.radius*2 - 1;
 			}
 		}
 		//Prevent the ball from going outside the left and right of the canvas.
-		if (this.x < 0 || this.x + this.radius*2 > canvas.width){
+		if (this.x < 1 || this.x + this.radius*2 + 1 > canvas.width){
 			this.velX *= -1;
-			if (this.x < 0){
-				this.x = 0;
+			if (this.x < 1){
+				this.x = 1;
 			}else{
-				this.x = canvas.width - this.radius*2;
+				this.x = canvas.width - this.radius*2 - 1;
 			}
 		}
 	}
@@ -118,8 +130,9 @@ function Ball(x, y, velX, velY, accelX, accelY, damp, collisionThreshold) {
 		this.edgeXSum = 0;
 		this.edgeYSum = 0;
 		
-		//TODO !!!! Fix the line below!!! You should not be getting a subImage of the context you are drawing one. False positives.
-		var subImage = ctx.getImageData(Math.floor(this.x) - 1, Math.floor(this.y) - 1, this.radius*2 + 2, this.radius*2 + 2);
+		var subImage = ctxIn.getImageData(Math.floor(this.x) - 1, Math.floor(this.y) - 1, this.radius*2 + 2, this.radius*2 + 2);
+		//ctx.putImageData(subImage, 0, 0);
+		//var gsData = filterGrayscale(subImage);
 		var sobelEdge = filterSobel(filterGrayscale(subImage));
 		
 		for (var i = 0; i < this.collisionList.length; i++){
