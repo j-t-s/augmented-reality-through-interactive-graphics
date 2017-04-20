@@ -6,74 +6,109 @@ var ctx = canvas.getContext("2d");
 var canvasIn = createCanvas(640, 480, "", false);
 var ctxIn = canvasIn.getContext("2d");
 
+var canvasImgSource;
+
 //Create the ball
 var ball = new Ball();
 
 //Create running animation variable
-var running = true;
+var running = false;
 
-var streaming = false;
 var video = document.createElement("video");
-document.body.appendChild(video);
 
-navigator.getMedia = (	navigator.getUserMedia || 
-						navigator.webkitGetUserMedia ||
-						navigator.mozGetUserMedia ||
-						navigator.msGetUserMedia );
-navigator.getMedia({video: true, audio: false}, 
-	function(stream){
-		if (navigator.mozGetUserMedia){
-			video.mozSrcObject = stream;			
-		}else{
-			var vendorURL = window.URL || window.webkitURL;
-			video.src = vendorURL.createObjectURL(stream);
-		}
-		video.play();
-	},
-	function(err){
-		console.log("Error: "+err);
+function loadWebcam(){
+	//Modified from https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
+	// and Modified from https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Taking_still_photos
+	if (navigator.mediaDevices === undefined){
+		navigator.mediaDevices = {};
 	}
-);
 
-video.addEventListener("canplay",
-	function(e){
-		if (!streaming){
-			streaming = true;
-			loadVideo();
+	if (navigator.mediaDevices.getUserMedia === undefined){
+		navigator.mediaDevices.getUserMedia = function(contraints){
+			var getMedia =(	navigator.getUserMedia || 
+								navigator.webkitGetUserMedia ||
+								navigator.mozGetUserMedia ||
+								navigator.msGetUserMedia );
+			if (!getMedia || typeof Promise === "undefined"){
+				alert("Error: Not able to load Webcam.");
+				console.log("getUserMedia: is not supported.");
+				return;
+			}else if (!getMedia && typeof Promise !== "undefined"){
+				 return Promise.reject(new Error("getUserMedia is not implemented in this browser"));
+			}
+			
+			return new Promise(function(resolve, reject){
+				getMedia.call(navigator, contraints, resovlve, reject);
+			});
 		}
-	},
-	false
-);
+	}
+
+	navigator.mediaDevices.getUserMedia(
+		{audio: false, video: true}
+	).then(
+		function(stream){
+			if ("srcObject" in video){
+				video.srcObject = stream;
+			}else{
+				video.src = window.URL.createObject(stream);
+			}
+			video.onloadedmetadata = function(e){
+				video.play();
+				loadVideo();
+			};
+		}
+	).catch(
+		function(err){
+			console.log(err.name+": "+err.message);
+		}
+	);
+}
+
+
 function loadVideo(){
+	//Make the video the CanvasImageSource
+	canvasImgSource =  video;
+	
 	canvas.width = canvasIn.width = video.videoWidth;
 	canvas.height = canvasIn.height = video.videoHeight;
-	//Draw the Image
-	ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-	ctxIn.drawImage(video, 0, 0, canvas.width, canvas.height);
+	//Draw the Image, and give it a half a second to load.
+	setTimeout(updateCanvas, 500);
 	
+	document.getElementById("btnWebcamActivate").disabled = true;
+	document.getElementById("btnAnimate").disabled = false;
+	document.getElementById("files").disabled = false;
 }
 
 
 
 
 //When the image loads, start the module.
-document.getElementById("img").addEventListener("load", main, false);
+document.getElementById("img").addEventListener("load", loadImage, false);
 
-//Main module, "entry" point of the program
-function main(){
-	loadImage();
-	document.getElementById("btnAnimate").disabled = false;
-}
+//Try to load the webcam.
+document.getElementById("btnWebcamActivate").addEventListener("click", loadWebcam, false);
+
 
 function loadImage(){
 	//Make variable img represent the source image
 	var img = document.getElementById("img");
+	//Make the image the CanvasImageSource
+	canvasImgSource = img;
 	//Set the canvas the size of the img
 	canvas.width = canvasIn.width = img.width;
 	canvas.height = canvasIn.height = img.height;
-	//Draw the Image
-	ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-	ctxIn.drawImage(img, 0, 0, canvas.width, canvas.height);
+	//Draw the image
+	updateCanvas();
+	
+	document.getElementById("btnAnimate").disabled = false;
+	document.getElementById("files").disabled = true;
+	document.getElementById("btnWebcamActivate").disabled = false;
+}
+
+function updateCanvas(){
+	//Draw the image onto the canvas.
+	ctx.drawImage(canvasImgSource, 0, 0, canvas.width, canvas.height);
+	ctxIn.drawImage(canvasImgSource, 0, 0, canvas.width, canvas.height);
 }
 
 //Handle Animation Button
@@ -82,16 +117,18 @@ document.getElementById("btnAnimate").addEventListener("click", toggleAnimation,
 function toggleAnimation(){
 	var btnAnimate = document.getElementById("btnAnimate");
 	var filesInput = document.getElementById("files");
-	filesInput.disabled = !filesInput.disabled;
+	//filesInput.disabled = !filesInput.disabled;
+	running = !running;
 	
-	if (filesInput.disabled == true){//Run animation, user cannot change picture.
+	if (running && typeof canvasImgSource !== "undefined"){//Run animation, user cannot change picture.
 		btnAnimate.innerHTML = "Stop";
-		running = true;
-		if (checkImgLoaded()){
+		filesInput.disabled = true;
+		if (typeof canvasImgSource !== "undefined"){
 			window.requestAnimationFrame(draw);
 		}
 	}else{//Stop the animation
 		btnAnimate.innerHTML = "Animate";
+		filesInput.disabled = false;
 		running = false;
 	}
 }
@@ -102,8 +139,8 @@ function checkImgLoaded(){
 }
 
 function draw(){
-	ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-	ctxIn.drawImage(video, 0, 0, canvas.width, canvas.height);
+	updateCanvas();
+	
 	ball.draw();
 	ball.update();
 	
@@ -116,24 +153,24 @@ function draw(){
 //Handle Mouse Events
 canvas.addEventListener("mousemove",function(e){
 	var canvasRect = canvas.getBoundingClientRect();
-	if (!running && checkImgLoaded()){
+	if (!running && typeof canvasImgSource !== "undefined"){
 		ball.velX = 0;
 		ball.velY = 0;
 		ball.x = e.clientX - canvasRect.left - ball.radius;
 		ball.y = e.clientY - canvasRect.top - ball.radius;
-		loadImage();
+		updateCanvas();
 		draw();
 	}
 });
 canvas.addEventListener("click",function(e){
-	if(checkImgLoaded()){
+	if(typeof canvasImgSource !== "undefined"){
 		toggleAnimation()
-		loadImage();
+		updateCanvas();
 		draw();
 	}
 });
 
-
+//Filters of Grayscale and Sobel were inspired by https://www.html5rocks.com/en/tutorials/canvas/imagefilters/
 //Filter the ImageData provided using a Grayscale Filter.
 //Return the grayscale data in object with its hieght, width, and values in an Uint8ClampedArray.
 function filterGrayscale(imgData){
