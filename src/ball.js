@@ -20,35 +20,37 @@ function Ball(x, y, velX, velY, accelX, accelY, damp, collisionThreshold) {
 	this.edgeXSum = 0;
 	this.edgeYSum = 0;
 	
-	//Create collision mask
-	var canv = createCanvas(this.radius*2, this.radius*2, "", false);
-	var ctx2 = canv.getContext("2d");
-	ctx2.strokeStyle = "yellow";
-	ctx2.fillStyle = "orange";
-	ctx2.beginPath();
-	ctx2.arc(this.radius, this.radius, this.radius, 0, 2*Math.PI);
-	ctx2.stroke();
-	ctx2.fill();
-	var imageData = ctx2.getImageData(0, 0, canv.width, canv.height);
-	
-	for (var i = 0; i < imageData.data.length; i+=4){
-		if (imageData.data[i+3] > 254){
-			var pos = i/4;
-			var xv = pos%canv.width;
-			var yv = ((pos - xv)/canv.width)
-			
-			if ((xv % 2 == 0 && yv % 2 != 0) || (xv % 2 != 0 && yv % 2 == 0)){//Get every other pixel
-				imageData.data[i+2] = imageData.data[i+1] = imageData.data[i] = 255 - imageData.data[i+3];
-				imageData.data[i+3] = 255;
-				this.collisionList.push({x:xv, y:yv});//Half list
+	this.createCollisionMask = function(){
+		var canv = createCanvas(this.radius*2, this.radius*2, "", false);
+		var ctx2 = canv.getContext("2d");
+		ctx2.strokeStyle = "yellow";
+		ctx2.fillStyle = "orange";
+		ctx2.beginPath();
+		ctx2.arc(this.radius, this.radius, this.radius, 0, 2*Math.PI);
+		ctx2.stroke();
+		ctx2.fill();
+		var imageData = ctx2.getImageData(0, 0, canv.width, canv.height);
+		
+		this.collisionList = [];//Empty array
+		for (var i = 0; i < imageData.data.length; i+=4){
+			if (imageData.data[i+3] > 254){
+				var pos = i/4;
+				var xv = pos%canv.width;
+				var yv = ((pos - xv)/canv.width)
+				
+				if ((xv % 2 == 0 && yv % 2 != 0) || (xv % 2 != 0 && yv % 2 == 0)){//Get every other pixel
+					imageData.data[i+2] = imageData.data[i+1] = imageData.data[i] = 255 - imageData.data[i+3];
+					imageData.data[i+3] = 255;
+					this.collisionList.push({x:xv, y:yv});//Half list
+				}
+				//this.collisionList.push({x:xv, y:yv});//Full list
+				
+			}else{
+				imageData.data[i+3] = 0;
 			}
-			//this.collisionList.push({x:xv, y:yv});//Full list
-			
-		}else{
-			imageData.data[i+3] = 0;
 		}
-	}
-	//END of collision mask creation
+	};
+	this.createCollisionMask();
 	
 	//Draw the object on the canvas.
 	this.draw = function(){
@@ -69,7 +71,7 @@ function Ball(x, y, velX, velY, accelX, accelY, damp, collisionThreshold) {
 		ctx.arc(this.x + this.radius, this.y + this.radius, this.radius, 0, 2*Math.PI);
 		ctx.stroke();
 		ctx.fill();
-	}
+	};
 		
 	this.update = function(){
 		
@@ -122,7 +124,7 @@ function Ball(x, y, velX, velY, accelX, accelY, damp, collisionThreshold) {
 				this.x = canvas.width - this.radius*2 - 1;
 			}
 		}
-	}
+	};
 	//Test to see if there is a collision.
 	//Passing true to this function will draw the collision pixels in green.
 	this.testCollision = function(showCollision){
@@ -157,7 +159,7 @@ function Ball(x, y, velX, velY, accelX, accelY, damp, collisionThreshold) {
 			}
 		}
 		return this.collisionCount;
-	}
+	};
 	//Reset the ball, and slowly move it forward testing for the first collision point.
 	this.findFirstCollision = function(){
 		var futureX = this.x;
@@ -205,5 +207,5 @@ function Ball(x, y, velX, velY, accelX, accelY, damp, collisionThreshold) {
 				this.collisionCount = 1;
 			}
 		}
-	}
+	};
 }
