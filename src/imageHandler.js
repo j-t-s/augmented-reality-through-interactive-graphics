@@ -8,22 +8,53 @@ var ctxIn = canvasIn.getContext("2d");
 
 var canvasImgSource;
 
+//Create video element for Webcam to stream video into.
+var video = document.createElement("video");
+
 //Create the ball
 var ball = new Ball();
 
 //Create running animation variable
 var running = false;
 
-var video = document.createElement("video");
+
+//When the image loads in the browser, load the image into the program.
+document.getElementById("img").addEventListener("load", loadImage, false);
+
+//Try to activate the Webcam, and if it activates, load the frames into the program.
+document.getElementById("btnWebcamActivate").addEventListener("click", loadWebcam, false);
+
+function loadImage(){
+	//Make variable img represent the source image
+	var img = document.getElementById("img");
+	//Make the image the CanvasImageSource
+	canvasImgSource = img;
+	//Set the canvas the size of the img
+	canvas.width = canvasIn.width = img.width;
+	canvas.height = canvasIn.height = img.height;
+	//Draw the image
+	updateCanvas();
+	
+	document.getElementById("btnAnimate").disabled = false;
+	document.getElementById("files").disabled = true;
+	document.getElementById("btnWebcamActivate").disabled = false;
+	document.getElementById("btnGravity").disabled = false;
+}
+
+//Draw the image onto the canvas.
+function updateCanvas(){
+	ctx.drawImage(canvasImgSource, 0, 0, canvas.width, canvas.height);
+	ctxIn.drawImage(canvasImgSource, 0, 0, canvas.width, canvas.height);
+}
 
 function loadWebcam(){
 	//Modified from https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
 	// and Modified from https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Taking_still_photos
 	if (navigator.mediaDevices === undefined){
-		navigator.mediaDevices = {};
+		navigator.mediaDevices = {};//Create empty object if not defined.
 	}
 
-	if (navigator.mediaDevices.getUserMedia === undefined){
+	if (navigator.mediaDevices.getUserMedia === undefined){//If no getUserMedia, load the older API instead.
 		navigator.mediaDevices.getUserMedia = function(contraints){
 			var getMedia =(	navigator.getUserMedia || 
 								navigator.webkitGetUserMedia ||
@@ -53,6 +84,7 @@ function loadWebcam(){
 				video.src = window.URL.createObject(stream);
 			}
 			video.onloadedmetadata = function(e){
+				//When the video loads, play it, and load the video into the program.
 				video.play();
 				loadVideo();
 			};
@@ -63,7 +95,6 @@ function loadWebcam(){
 		}
 	);
 }
-
 
 function loadVideo(){
 	//Make the video the CanvasImageSource
@@ -77,39 +108,9 @@ function loadVideo(){
 	document.getElementById("btnWebcamActivate").disabled = true;
 	document.getElementById("btnAnimate").disabled = false;
 	document.getElementById("files").disabled = false;
+	document.getElementById("btnGravity").disabled = false;
 }
 
-
-
-
-//When the image loads, start the module.
-document.getElementById("img").addEventListener("load", loadImage, false);
-
-//Try to load the webcam.
-document.getElementById("btnWebcamActivate").addEventListener("click", loadWebcam, false);
-
-
-function loadImage(){
-	//Make variable img represent the source image
-	var img = document.getElementById("img");
-	//Make the image the CanvasImageSource
-	canvasImgSource = img;
-	//Set the canvas the size of the img
-	canvas.width = canvasIn.width = img.width;
-	canvas.height = canvasIn.height = img.height;
-	//Draw the image
-	updateCanvas();
-	
-	document.getElementById("btnAnimate").disabled = false;
-	document.getElementById("files").disabled = true;
-	document.getElementById("btnWebcamActivate").disabled = false;
-}
-
-function updateCanvas(){
-	//Draw the image onto the canvas.
-	ctx.drawImage(canvasImgSource, 0, 0, canvas.width, canvas.height);
-	ctxIn.drawImage(canvasImgSource, 0, 0, canvas.width, canvas.height);
-}
 
 //Handle Animation Button
 document.getElementById("btnAnimate").addEventListener("click", toggleAnimation, false);
@@ -133,11 +134,6 @@ function toggleAnimation(){
 	}
 }
 
-function checkImgLoaded(){
-	var img = document.getElementById("img");
-	return ((img.height*img.width) > 0);
-}
-
 function draw(){
 	updateCanvas();
 	
@@ -150,27 +146,9 @@ function draw(){
 	}
 }
 
-//Handle Mouse Events
-canvas.addEventListener("mousemove",function(e){
-	var canvasRect = canvas.getBoundingClientRect();
-	if (!running && typeof canvasImgSource !== "undefined"){
-		ball.velX = 0;
-		ball.velY = 0;
-		ball.x = e.clientX - canvasRect.left - ball.radius;
-		ball.y = e.clientY - canvasRect.top - ball.radius;
-		updateCanvas();
-		draw();
-	}
-});
-canvas.addEventListener("click",function(e){
-	if(typeof canvasImgSource !== "undefined"){
-		toggleAnimation()
-		updateCanvas();
-		draw();
-	}
-});
 
 //Filters of Grayscale and Sobel were inspired by https://www.html5rocks.com/en/tutorials/canvas/imagefilters/
+
 //Filter the ImageData provided using a Grayscale Filter.
 //Return the grayscale data in object with its hieght, width, and values in an Uint8ClampedArray.
 function filterGrayscale(imgData){
