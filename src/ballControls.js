@@ -54,6 +54,9 @@ canvas.addEventListener("mousemove",function(e){
 		ball.velX = 0;
 		ball.velY = 0;
 		ball.x = e.clientX - canvasRect.left - ball.radius;
+		if (mirror){
+			ball.x = canvas.width - ball.x - 2*ball.radius;			
+		}
 		ball.y = e.clientY - canvasRect.top - ball.radius;
 		updateCanvas();
 		draw();
