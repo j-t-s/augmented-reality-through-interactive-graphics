@@ -9,6 +9,13 @@
 				text-align: center;
 				display: block;
 			}
+			.mirror{
+				-webkit-transform: scale(-1, 1);
+				-moz-transform: scale(-1, 1);
+				-ms-transform: scale(-1, 1);
+				-o-transform: scale(-1, 1);
+				transform: scale(-1, 1);
+			}
 		</style>
 	</head>
 	<body>
@@ -21,6 +28,7 @@
 			<button id="btnWebcamActivate">Use Webcam</button>
 			<br>
 			<button id="btnAnimate" disabled>Animate</button>
+			<button id="btnMirror">Mirror</button>
 			<button id="btnGravity" disabled>No Gravity</button>
 			<br>
 			<label>Edge Sensitivity <input id="rangeEdgeSensitivity" type="range" value="970" min="0" max="1020"></label>
