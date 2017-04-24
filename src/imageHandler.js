@@ -17,6 +17,9 @@ var ball = new Ball();
 //Create running animation variable
 var running = false;
 
+//Mirror flag
+var mirror = false;
+
 
 //When the image loads in the browser, load the image into the program.
 document.getElementById("img").addEventListener("load", loadImage, false);
@@ -133,6 +136,19 @@ function toggleAnimation(){
 		running = false;
 	}
 }
+
+//Handle Mirror Button
+document.getElementById("btnMirror").addEventListener("click",
+	function(){
+		mirror = !mirror;
+		if(mirror){
+			canvas.className += " mirror";
+		}else{
+			canvas.className = canvas.className.replace(" mirror","");			
+		}
+	},
+	false
+);
 
 function draw(){
 	updateCanvas();
