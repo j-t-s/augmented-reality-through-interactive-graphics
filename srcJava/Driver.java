@@ -17,12 +17,20 @@ public class Driver {
 		
 		SwingUtilities.invokeLater(new Runnable() {
             public void run() {
-            	            	
+				/*try{
+					javax.imageio.ImageIO.write((new Webcam()).getCurrentFrame(), "PNG", new java.io.File("test"+(int)(Math.random()*1000)+".png"));
+				}catch(Exception ex){
+					ex.printStackTrace();
+				}*/
             	
 				//OutputFrame of = new OutputFrame("OutputFrame");
             	InputHandler ih = new InputHandler(null);
 				//ih.loadFile("pic1.png");
-            	ih.loadFile();
+            	//ih.loadFile();
+            	ih.loadWebcam();
+            	
+            	
+            	
 				
 				BufferedImage bi = ih.getFrame();
 				
@@ -74,6 +82,7 @@ public class Driver {
             	
             	rendEngine.run();
             	physEngine.run();
+            	
 				
 				//of.setImage(ih.getFrame());
 				
