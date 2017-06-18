@@ -22,8 +22,12 @@ public class InputHandler {
 		this.parent = parent;
 	}
 	
-	//TODO loadWebcam use the OpenCV library.
-	public void loadWebcam(){}
+	public void loadWebcam(){
+		loadWebcam(0);
+	}
+	public void loadWebcam(int deviceNumber){
+		imgHolder = new Webcam(deviceNumber);
+	}
 	
 	public void loadFile(){
 		JFileChooser chooser = new JFileChooser();
